@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>懇親会くじ引きアプリ</title>
+<style>
+  :root {
+    --primary: #e63946;
+    --primary-dark: #c1121f;
+    --gold: #ffd60a;
+    --bg: #f4f1ea;
+    --card: #ffffff;
+    --text: #1d1d1d;
+    --muted: #6b6b6b;
+    --cheers: #ff6b35;
+    --closing: #2a6f97;
+    --shadow: 0 4px 20px rgba(0,0,0,0.08);
+    --radius: 16px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 16px;
+  }
+  header { text-align: center; padding: 20px 0 8px; }
+  header h1 { font-size: 1.8rem; letter-spacing: 0.05em; }
+  header .subtitle { color: var(--muted); font-size: 0.85rem; margin-top: 4px; }
+  .container { max-width: 640px; margin: 0 auto; }
+  .card {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .settings-toggle {
+    display: flex; align-items: center; justify-content: space-between;
+    cursor: pointer; user-select: none;
+  }
+  .settings-toggle h2 { font-size: 1.1rem; display: flex; align-items: center; gap: 6px; }
+  .settings-toggle .arrow { transition: transform 0.3s; font-size: 1.2rem; }
+  .settings-toggle.open .arrow { transform: rotate(180deg); }
+  .settings-body { max-height: 0; overflow: hidden; transition: max-height 0.4s ease; }
+  .settings-body.open { max-height: 900px; }
+  .setting-row { display: flex; align-items: center; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
+  .setting-row label { font-weight: 600; white-space: nowrap; font-size: 0.9rem; }
+  .setting-row input[type="number"] {
+    width: 80px; padding: 8px 10px; border: 2px solid #ddd;
+    border-radius: 8px; font-size: 1rem; text-align: center;
+  }
+  .setting-row input[type="number"]:focus { outline: none; border-color: var(--primary); }
+  .setting-row .hint { font-size: 0.8rem; color: var(--muted); }
+
+  .event-section { margin-top: 16px; }
+  .event-section-title {
+    font-weight: 700; font-size: 0.95rem; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .event-config {
+    padding: 14px; border-radius: 12px; background: #f9f9f9;
+  }
+  .event-config-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+  .event-config-row input[type="number"] {
+    padding: 6px 10px; border: 2px solid #ddd; border-radius: 8px;
+    font-size: 0.9rem; width: 70px; text-align: center;
+  }
+  .event-config-row input[type="number"]:focus { outline: none; }
+  .cheers-input:focus { border-color: var(--cheers); }
+  .closing-input:focus { border-color: var(--closing); }
+  .event-label { font-weight: 600; font-size: 0.9rem; min-width: 64px; }
+
+  .event-tags { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  .event-tag {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 600;
+  }
+  .event-tag.cheers { background: rgba(255,107,53,0.15); color: var(--cheers); border: 1.5px solid var(--cheers); }
+  .event-tag.closing { background: rgba(42,111,151,0.15); color: var(--closing); border: 1.5px solid var(--closing); }
+  .event-tag .remove { cursor: pointer; font-weight: 800; margin-left: 2px; opacity: 0.6; }
+  .event-tag .remove:hover { opacity: 1; }
+
+  .btn-confirm {
+    margin-top: 12px; width: 100%; padding: 10px; border: none; border-radius: 10px;
+    background: var(--primary); color: #fff; font-size: 0.95rem; font-weight: 700;
+    cursor: pointer; transition: opacity 0.2s;
+  }
+  .btn-confirm:hover { opacity: 0.88; }
+
+  .btn-reset {
+    margin-top: 12px; width: 100%; padding: 10px; border: 2px solid #ddd;
+    border-radius: 10px; background: #fff; font-size: 0.9rem; font-weight: 600;
+    color: var(--muted); cursor: pointer; transition: all 0.2s;
+  }
+  .btn-reset:hover { border-color: var(--primary); color: var(--primary); }
+
+  .draw-area { text-align: center; padding: 32px 24px; }
+  .remaining { font-size: 0.85rem; color: var(--muted); margin-bottom: 16px; }
+  .remaining .count { font-weight: 700; color: var(--primary); font-size: 1.1rem; }
+  .draw-number {
+    font-size: 5rem; font-weight: 900; line-height: 1; margin: 16px 0;
+    min-height: 80px; display: flex; align-items: center; justify-content: center;
+  }
+  .draw-number.pop { animation: pop 0.5s ease; }
+  @keyframes pop {
+    0% { transform: scale(0.3); opacity: 0; }
+    50% { transform: scale(1.15); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .draw-event { margin: 8px 0 16px; min-height: 36px; }
+  .draw-event .badge {
+    display: inline-block; padding: 8px 24px; border-radius: 24px;
+    font-size: 1.1rem; font-weight: 700; animation: pop 0.5s ease 0.2s both;
+  }
+  .draw-event .badge.cheers { background: var(--cheers); color: #fff; }
+  .draw-event .badge.closing { background: var(--closing); color: #fff; }
+  .draw-btn {
+    background: var(--primary); color: #fff; border: none; border-radius: 50%;
+    width: 140px; height: 140px; font-size: 1.3rem; font-weight: 700; cursor: pointer;
+    box-shadow: 0 6px 24px rgba(230,57,70,0.35); transition: transform 0.15s, box-shadow 0.15s; margin: 8px 0;
+  }
+  .draw-btn:hover { transform: scale(1.05); box-shadow: 0 8px 30px rgba(230,57,70,0.45); }
+  .draw-btn:active { transform: scale(0.95); }
+  .draw-btn:disabled { background: #ccc; box-shadow: none; cursor: not-allowed; transform: none; }
+  .draw-btn .btn-icon { font-size: 2rem; display: block; margin-bottom: 4px; }
+  .history-card h2 { font-size: 1.1rem; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+  .history-list { display: flex; flex-direction: column; gap: 8px; max-height: 400px; overflow-y: auto; }
+  .history-item {
+    display: flex; align-items: center; gap: 12px; padding: 10px 14px;
+    background: #f5f5f5; border-radius: 10px; animation: slideIn 0.3s ease;
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  .history-item .order { font-size: 0.75rem; color: var(--muted); width: 28px; text-align: right; }
+  .history-item .num { font-size: 1.5rem; font-weight: 800; min-width: 50px; text-align: center; }
+  .history-item .event-badge { font-size: 0.75rem; font-weight: 700; padding: 3px 10px; border-radius: 12px; }
+  .history-item .event-badge.cheers { background: var(--cheers); color: #fff; }
+  .history-item .event-badge.closing { background: var(--closing); color: #fff; }
+  .history-item .time { margin-left: auto; font-size: 0.75rem; color: var(--muted); }
+  .history-empty { text-align: center; color: var(--muted); padding: 24px; font-size: 0.9rem; }
+
+  /* ===== Celebration Overlay ===== */
+  .celebration-overlay {
+    position: fixed; inset: 0; z-index: 9998;
+    display: none; align-items: center; justify-content: center;
+    flex-direction: column; text-align: center;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    cursor: pointer;
+  }
+  .celebration-overlay.show { display: flex; animation: overlayIn 0.4s ease; }
+  @keyframes overlayIn { from { opacity: 0; } to { opacity: 1; } }
+  .celebration-overlay.cheers-bg {
+    background: radial-gradient(circle at center, rgba(255,107,53,0.92), rgba(230,57,70,0.95));
+  }
+  .celebration-overlay.closing-bg {
+    background: radial-gradient(circle at center, rgba(42,111,151,0.92), rgba(27,54,93,0.95));
+  }
+  .celebration-emoji {
+    font-size: 5rem; line-height: 1;
+    animation: emojiBounce 0.6s ease both, emojiFloat 2s ease-in-out infinite 0.6s;
+  }
+  @keyframes emojiBounce {
+    0% { transform: scale(0) rotate(-30deg); opacity: 0; }
+    60% { transform: scale(1.3) rotate(10deg); opacity: 1; }
+    100% { transform: scale(1) rotate(0); opacity: 1; }
+  }
+  @keyframes emojiFloat {
+    0%,100% { transform: translateY(0); }
+    50% { transform: translateY(-12px); }
+  }
+  .celebration-title {
+    color: #fff; font-size: 2.6rem; font-weight: 900;
+    margin-top: 12px; letter-spacing: 0.08em;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    animation: titlePop 0.5s ease 0.15s both;
+  }
+  @keyframes titlePop {
+    0% { transform: scale(0.5); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .celebration-number {
+    color: #fff; font-size: 1.6rem; font-weight: 700;
+    margin-top: 8px; opacity: 0.95;
+    animation: titlePop 0.5s ease 0.25s both;
+  }
+  .celebration-message {
+    color: #fff; font-size: 1.15rem; font-weight: 600;
+    margin-top: 16px; max-width: 80%;
+    line-height: 1.6;
+    animation: titlePop 0.5s ease 0.35s both;
+  }
+  .celebration-tap-hint {
+    color: rgba(255,255,255,0.7); font-size: 0.85rem;
+    margin-top: 28px;
+    animation: blink 1.5s ease infinite 0.5s;
+  }
+  @keyframes blink { 0%,100% { opacity: 0.4; } 50% { opacity: 1; } }
+
+  .confetti-piece {
+    position: fixed; width: 10px; height: 10px; top: -10px;
+    z-index: 9999; pointer-events: none; animation: confettiFall 2.5s linear forwards;
+  }
+  @keyframes confettiFall { to { transform: translateY(105vh) rotate(720deg); opacity: 0; } }
+
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: #333; color: #fff; padding: 12px 28px; border-radius: 30px;
+    font-size: 0.9rem; z-index: 10000; animation: toastIn 0.3s ease;
+  }
+  @keyframes toastIn { from { opacity: 0; transform: translate(-50%, 20px); } to { opacity: 1; transform: translate(-50%, 0); } }
+</style>
+</head>
+<body>
+
+<div class="celebration-overlay" id="celebrationOverlay" onclick="closeCelebration()">
+  <div class="celebration-emoji" id="celebrationEmoji">🎉</div>
+  <div class="celebration-title" id="celebrationTitle">おめでとうございます！</div>
+  <div class="celebration-number" id="celebrationNumber"></div>
+  <div class="celebration-message" id="celebrationMessage"></div>
+  <div class="celebration-tap-hint">タップして閉じる</div>
+</div>
+
+<div class="container">
+  <header>
+    <h1>🎉 懇親会くじ引き</h1>
+    <p class="subtitle">順番抽選アプリ</p>
+  </header>
+
+  <div class="card">
+    <div class="settings-toggle" id="settingsToggle">
+      <h2>⚙️ 設定</h2>
+      <span class="arrow">▼</span>
+    </div>
+    <div class="settings-body" id="settingsBody">
+      <div class="setting-row">
+        <label>人数:</label>
+        <input type="number" id="totalPeople" value="14" min="1" max="999">
+        <span class="hint">参加者の総数</span>
+      </div>
+      <div class="setting-row">
+        <label>開始番号:</label>
+        <input type="number" id="startNumber" value="1" min="1" max="999">
+        <span class="hint">途中の番号から開始したい場合に変更</span>
+      </div>
+
+      <div class="event-section">
+        <div class="event-section-title">🍻 乾杯・締め番号の設定</div>
+        <div class="event-config">
+          <div class="event-config-row">
+            <span class="event-label" style="color: var(--cheers);">🍻 乾杯</span>
+            <span>番号</span>
+            <input type="number" class="cheers-input" id="cheersNumber" min="1" max="999" placeholder="例: 7">
+          </div>
+          <div class="event-config-row">
+            <span class="event-label" style="color: var(--closing);">🏁 締め</span>
+            <span>番号</span>
+            <input type="number" class="closing-input" id="closingNumber" min="1" max="999" placeholder="例: 14">
+          </div>
+          <p class="hint" style="margin-top:4px;">指定した番号が抽選されたら乾杯・締めを促します。空欄でもOKです。</p>
+          <div class="event-tags" id="eventTags"></div>
+          <button class="btn-confirm" onclick="confirmEvents()">設定完了</button>
+        </div>
+      </div>
+
+      <button class="btn-reset" onclick="resetAll()">🔄 全てリセット</button>
+    </div>
+  </div>
+
+  <div class="card draw-area">
+    <div class="remaining">残り <span class="count" id="remainingCount">14</span> 人</div>
+    <div class="draw-number" id="drawNumber">？</div>
+    <div class="draw-event" id="drawEvent"></div>
+    <button class="draw-btn" id="drawBtn" onclick="draw()">
+      <span class="btn-icon">🎴</span>
+      くじを引く
+    </button>
+  </div>
+
+  <div class="card history-card">
+    <h2>📋 抽選履歴</h2>
+    <div class="history-list" id="historyList">
+      <div class="history-empty">まだ抽選されていません</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let pool = [];
+  let history = [];
+  let events = {};
+  let drawCount = 0;
+  let celebrationTimer = null;
+
+  function initPool() {
+    const total = parseInt(document.getElementById('totalPeople').value) || 1;
+    const start = parseInt(document.getElementById('startNumber').value) || 1;
+    pool = [];
+    for (let i = 0; i < total; i++) { pool.push(start + i); }
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    drawCount = 0;
+    history = [];
+    updateUI();
+  }
+
+  function draw() {
+    if (pool.length === 0) return;
+    const num = pool.shift();
+    drawCount++;
+    const evt = events[num] || null;
+    const now = new Date();
+    const time = now.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    history.unshift({ order: drawCount, number: num, event: evt, time });
+
+    const numEl = document.getElementById('drawNumber');
+    numEl.textContent = num;
+    numEl.classList.remove('pop');
+    void numEl.offsetWidth;
+    numEl.classList.add('pop');
+
+    const evtEl = document.getElementById('drawEvent');
+    evtEl.innerHTML = '';
+    if (evt === 'cheers') {
+      evtEl.innerHTML = '<span class="badge cheers">🍻 乾杯の時間です！</span>';
+    } else if (evt === 'closing') {
+      evtEl.innerHTML = '<span class="badge closing">🏁 締めの時間です！</span>';
+    }
+
+    if (evt === 'cheers' || evt === 'closing') {
+      showCelebration(num, evt);
+    }
+
+    updateUI();
+    saveState();
+  }
+
+  function showCelebration(num, type) {
+    const overlay = document.getElementById('celebrationOverlay');
+    const emojiEl = document.getElementById('celebrationEmoji');
+    const titleEl = document.getElementById('celebrationTitle');
+    const numberEl = document.getElementById('celebrationNumber');
+    const messageEl = document.getElementById('celebrationMessage');
+
+    overlay.classList.remove('cheers-bg', 'closing-bg');
+
+    if (type === 'cheers') {
+      overlay.classList.add('cheers-bg');
+      emojiEl.textContent = '🍻';
+      titleEl.textContent = 'おめでとうございます！';
+      numberEl.textContent = '番号 ' + num + ' さん';
+      messageEl.textContent = '乾杯の音頭をお願いします！\n皆さん、グラスをお持ちください！';
+    } else {
+      overlay.classList.add('closing-bg');
+      emojiEl.textContent = '🏁';
+      titleEl.textContent = 'おめでとうございます！';
+      numberEl.textContent = '番号 ' + num + ' さん';
+      messageEl.textContent = '締めの挨拶をお願いします！\n本日はお疲れ様でした！';
+    }
+
+    overlay.classList.add('show');
+    emojiEl.style.animation = 'none';
+    void emojiEl.offsetWidth;
+    emojiEl.style.animation = '';
+
+    launchConfetti(80);
+
+    if (celebrationTimer) clearTimeout(celebrationTimer);
+    celebrationTimer = setTimeout(closeCelebration, 6000);
+  }
+
+  function closeCelebration() {
+    document.getElementById('celebrationOverlay').classList.remove('show');
+    if (celebrationTimer) { clearTimeout(celebrationTimer); celebrationTimer = null; }
+  }
+
+  function updateUI() {
+    document.getElementById('remainingCount').textContent = pool.length;
+    const btn = document.getElementById('drawBtn');
+    btn.disabled = pool.length === 0;
+    if (pool.length === 0) { btn.innerHTML = '<span class="btn-icon">✅</span>終了'; }
+    else { btn.innerHTML = '<span class="btn-icon">🎴</span>くじを引く'; }
+    const list = document.getElementById('historyList');
+    if (history.length === 0) {
+      list.innerHTML = '<div class="history-empty">まだ抽選されていません</div>';
+    } else {
+      list.innerHTML = history.map(h => {
+        let badge = '';
+        if (h.event === 'cheers') badge = '<span class="event-badge cheers">乾杯</span>';
+        else if (h.event === 'closing') badge = '<span class="event-badge closing">締め</span>';
+        return '<div class="history-item"><span class="order">' + h.order + '番目</span><span class="num">' + h.number + '</span>' + badge + '<span class="time">' + h.time + '</span></div>';
+      }).join('');
+    }
+  }
+
+  // ===== Confirm events (single button) =====
+  function confirmEvents() {
+    const cheersNum = parseInt(document.getElementById('cheersNumber').value);
+    const closingNum = parseInt(document.getElementById('closingNumber').value);
+
+    // Build new events object from scratch
+    const newEvents = {};
+
+    if (cheersNum && cheersNum >= 1) {
+      if (closingNum && cheersNum === closingNum) {
+        showToast('乾杯と締めに同じ番号は設定できません');
+        return;
+      }
+      newEvents[cheersNum] = 'cheers';
+    }
+
+    if (closingNum && closingNum >= 1) {
+      newEvents[closingNum] = 'closing';
+    }
+
+    events = newEvents;
+    saveState();
+    renderTags();
+    showToast('設定を保存しました');
+  }
+
+  function removeEvent(num) {
+    delete events[num];
+    renderTags();
+    saveState();
+  }
+
+  function renderTags() {
+    const container = document.getElementById('eventTags');
+    const keys = Object.keys(events).sort((a,b) => parseInt(a) - parseInt(b));
+    if (keys.length === 0) {
+      container.innerHTML = '<span class="hint">まだ設定されていません</span>';
+      return;
+    }
+    container.innerHTML = keys.map(k => {
+      const e = events[k];
+      const label = e === 'cheers' ? '🍻 乾杯' : '🏁 締め';
+      return '<span class="event-tag ' + e + '">' + label + ' → No.' + k + '<span class="remove" onclick="removeEvent(' + k + ')">✕</span></span>';
+    }).join('');
+  }
+
+  function launchConfetti(count) {
+    count = count || 40;
+    const colors = ['#e63946', '#ffd60a', '#2a6f97', '#ff6b35', '#52b788', '#9d4edd', '#f72585', '#06d6a0'];
+    for (let i = 0; i < count; i++) {
+      const piece = document.createElement('div');
+      piece.className = 'confetti-piece';
+      piece.style.left = Math.random() * 100 + 'vw';
+      piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+      piece.style.animationDelay = Math.random() * 0.8 + 's';
+      piece.style.animationDuration = (1.5 + Math.random() * 2) + 's';
+      piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+      const sz = (6 + Math.random() * 10) + 'px';
+      piece.style.width = sz; piece.style.height = sz;
+      document.body.appendChild(piece);
+      setTimeout(() => piece.remove(), 4000);
+    }
+  }
+
+  function showToast(msg) {
+    const existing = document.querySelector('.toast');
+    if (existing) existing.remove();
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 2500);
+  }
+
+  function resetAll() {
+    if (!confirm('抽選履歴をすべてリセットしますか？\n（乾杯・締めの設定は保持されます）')) return;
+    initPool();
+    document.getElementById('drawNumber').textContent = '？';
+    document.getElementById('drawEvent').innerHTML = '';
+    saveState();
+    showToast('リセットしました');
+  }
+
+  function saveState() {
+    localStorage.setItem('konshinkai_events', JSON.stringify(events));
+    localStorage.setItem('konshinkai_total', document.getElementById('totalPeople').value);
+    localStorage.setItem('konshinkai_start', document.getElementById('startNumber').value);
+  }
+
+  function loadState() {
+    const savedEvents = localStorage.getItem('konshinkai_events');
+    if (savedEvents) {
+      events = JSON.parse(savedEvents);
+    } else {
+      events = { 7: 'cheers', 14: 'closing' };
+    }
+    renderTags();
+
+    // Sync input fields with loaded events
+    const cheersKey = Object.keys(events).find(k => events[k] === 'cheers');
+    const closingKey = Object.keys(events).find(k => events[k] === 'closing');
+    if (cheersKey) document.getElementById('cheersNumber').value = cheersKey;
+    if (closingKey) document.getElementById('closingNumber').value = closingKey;
+
+    const savedTotal = localStorage.getItem('konshinkai_total');
+    if (savedTotal) document.getElementById('totalPeople').value = savedTotal;
+    const savedStart = localStorage.getItem('konshinkai_start');
+    if (savedStart) document.getElementById('startNumber').value = savedStart;
+  }
+
+  document.getElementById('settingsToggle').addEventListener('click', function() {
+    this.classList.toggle('open');
+    document.getElementById('settingsBody').classList.toggle('open');
+  });
+  document.getElementById('totalPeople').addEventListener('change', () => { saveState(); initPool(); });
+  document.getElementById('startNumber').addEventListener('change', () => { saveState(); initPool(); });
+
+  loadState();
+  initPool();
+</script>
+</body>
+</html>
