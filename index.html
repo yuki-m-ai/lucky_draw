@@ -240,12 +240,12 @@
     <div class="settings-body" id="settingsBody">
       <div class="setting-row">
         <label>人数:</label>
-        <input type="number" id="totalPeople" value="14" min="1" max="999">
+        <input type="number" id="totalPeople" value="14" min="1" max="999" autocomplete="off">
         <span class="hint">参加者の総数</span>
       </div>
       <div class="setting-row">
         <label>開始番号:</label>
-        <input type="number" id="startNumber" value="1" min="1" max="999">
+        <input type="number" id="startNumber" value="1" min="1" max="999" autocomplete="off">
         <span class="hint">途中の番号から開始したい場合に変更</span>
       </div>
 
@@ -255,12 +255,12 @@
           <div class="event-config-row">
             <span class="event-label" style="color: var(--cheers);">🍻 乾杯</span>
             <span>番号</span>
-            <input type="number" class="cheers-input" id="cheersNumber" min="1" max="999" placeholder="例: 7">
+            <input type="number" class="cheers-input" id="cheersNumber" min="1" max="999" placeholder="例: 7" autocomplete="off">
           </div>
           <div class="event-config-row">
             <span class="event-label" style="color: var(--closing);">🏁 締め</span>
             <span>番号</span>
-            <input type="number" class="closing-input" id="closingNumber" min="1" max="999" placeholder="例: 14">
+            <input type="number" class="closing-input" id="closingNumber" min="1" max="999" placeholder="例: 14" autocomplete="off">
           </div>
           <p class="hint" style="margin-top:4px;">指定した番号が抽選されたら乾杯・締めを促します。空欄でもOKです。</p>
           <div class="event-tags" id="eventTags"></div>
@@ -427,7 +427,10 @@
   }
 
   function removeEvent(num) {
+    const type = events[num];
     delete events[num];
+    if (type === 'cheers') document.getElementById('cheersNumber').value = '';
+    else if (type === 'closing') document.getElementById('closingNumber').value = '';
     renderTags();
     saveState();
   }
